@@ -17,13 +17,23 @@ fun PantallaListado(
     onCrearRecordatorio: () -> Unit,
     onRecordatorioClick: (Int) -> Unit,
     onReintentar: () -> Unit,
+    onPreferenciasClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Mis recordatorios") }
+                title = {
+                    Text("Mis recordatorios")
+                },
+                actions = {
+                    TextButton(
+                        onClick = onPreferenciasClick
+                    ) {
+                        Text("⚙️ Ajustes")
+                    }
+                }
             )
         },
         floatingActionButton = {
@@ -76,7 +86,9 @@ fun PantallaListado(
                             TarjetaRecordatorioItem(
                                 recordatorio = recordatorio,
                                 onClick = {
-                                    onRecordatorioClick(recordatorio.id)
+                                    onRecordatorioClick(
+                                        recordatorio.id
+                                    )
                                 }
                             )
                         }
@@ -107,9 +119,17 @@ fun TarjetaRecordatorioItem(
                 style = MaterialTheme.typography.titleMedium
             )
 
-            Text("Categoría: ${recordatorio.categoria.nombre}")
-            Text("Prioridad: ${recordatorio.prioridad.nombre}")
-            Text("Estado: ${recordatorio.estado.nombre}")
+            Text(
+                text = "Categoría: ${recordatorio.categoria.nombre}"
+            )
+
+            Text(
+                text = "Prioridad: ${recordatorio.prioridad.nombre}"
+            )
+
+            Text(
+                text = "Estado: ${recordatorio.estado.nombre}"
+            )
         }
     }
 }
@@ -133,9 +153,13 @@ fun EstadoMensaje(
         )
 
         if (textoBoton != null) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(
+                modifier = Modifier.height(16.dp)
+            )
 
-            Button(onClick = onAccion) {
+            Button(
+                onClick = onAccion
+            ) {
                 Text(textoBoton)
             }
         }

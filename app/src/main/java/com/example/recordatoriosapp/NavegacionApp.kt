@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.ViewModel
@@ -20,7 +21,9 @@ import androidx.navigation.navArgument
 @Composable
 fun NavegacionApp() {
     val navController = rememberNavController()
+    val context = LocalContext.current.applicationContext
 
+    // Repositorio de recordatorios de la Actividad 2
     val repositorio = remember {
         RecordatoriosRepositoryMemoria()
     }
@@ -36,10 +39,31 @@ fun NavegacionApp() {
         }
     )
 
+    // Repositorio y ViewModel de preferencias
+    val preferenciasRepositorio = remember(context) {
+        PreferenciasRepository(context)
+    }
+
+    val preferenciasModelo: PreferenciasViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(
+                modelClass: Class<T>
+            ): T {
+                return PreferenciasViewModel(
+                    preferenciasRepositorio
+                ) as T
+            }
+        }
+    )
+
     val listaEstado by modelo.listaUiState
         .collectAsStateWithLifecycle()
 
     val formularioEstado by modelo.formularioUiState
+        .collectAsStateWithLifecycle()
+
+    val preferencias by preferenciasModelo.preferencias
         .collectAsStateWithLifecycle()
 
     LaunchedEffect(formularioEstado.guardadoExitoso) {
@@ -49,14 +73,46 @@ fun NavegacionApp() {
         }
     }
 
+    // Aplicar preferencias al listado
+    val listaFiltrada = remember(listaEstado, preferencias) {
+        when (val estado = listaEstado) {
+            is ListaUiState.ConDatos -> {
+                var datos = estado.recordatorios
+
+                if (!preferencias.mostrarCompletados) {
+                    datos = datos.filter {
+                        it.estado != EstadoRecordatorio.Completado
+                    }
+                }
+
+                datos = when (preferencias.ordenamiento) {
+                    "titulo" -> datos.sortedBy { it.titulo }
+
+                    "prioridad" -> datos.sortedBy {
+                        when (it.prioridad) {
+                            Prioridad.Alta -> 0
+                            Prioridad.Media -> 1
+                            Prioridad.Baja -> 2
+                        }
+                    }
+
+                    else -> datos.sortedBy { it.id }
+                }
+
+                ListaUiState.ConDatos(datos)
+            }
+
+            else -> estado
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = "listado"
     ) {
-
         composable("listado") {
             PantallaListado(
-                estado = listaEstado,
+                estado = listaFiltrada,
                 onCrearRecordatorio = {
                     modelo.reiniciarFormulario()
                     navController.navigate("crear")
@@ -66,6 +122,9 @@ fun NavegacionApp() {
                 },
                 onReintentar = {
                     modelo.cargarRecordatorios()
+                },
+                onPreferenciasClick = {
+                    navController.navigate("preferencias")
                 }
             )
         }
@@ -112,6 +171,21 @@ fun NavegacionApp() {
                 }
             )
         }
+
+        // Nueva pantalla de preferencias
+        composable("preferencias") {
+            PantallaPreferencias(
+                preferencias = preferencias,
+                onTemaOscuroChange =
+                    preferenciasModelo::cambiarTemaOscuro,
+                onMostrarCompletadosChange =
+                    preferenciasModelo::cambiarMostrarCompletados,
+                onOrdenamientoChange =
+                    preferenciasModelo::cambiarOrdenamiento,
+                onVolver = {
+                    navController.popBackStack()
+                }
+            )
+        }
     }
 }
-
