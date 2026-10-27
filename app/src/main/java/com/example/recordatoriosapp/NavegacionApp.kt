@@ -8,10 +8,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -20,12 +20,20 @@ import androidx.navigation.navArgument
 
 @Composable
 fun NavegacionApp() {
+
     val navController = rememberNavController()
     val context = LocalContext.current.applicationContext
 
-    // Repositorio de recordatorios de la Actividad 2
-    val repositorio = remember {
-        RecordatoriosRepositoryMemoria()
+    // Base de datos Room
+    val baseDatos = remember(context) {
+        RecordatoriosDatabase.obtenerInstancia(context)
+    }
+
+    // Repositorio que utiliza Room
+    val repositorio = remember(baseDatos) {
+        RecordatoriosRepositoryRoom(
+            baseDatos.recordatorioDao()
+        )
     }
 
     val modelo: RecordatoriosViewModel = viewModel(
@@ -39,7 +47,7 @@ fun NavegacionApp() {
         }
     )
 
-    // Repositorio y ViewModel de preferencias
+    // Preferencias guardadas con DataStore
     val preferenciasRepositorio = remember(context) {
         PreferenciasRepository(context)
     }
@@ -66,6 +74,7 @@ fun NavegacionApp() {
     val preferencias by preferenciasModelo.preferencias
         .collectAsStateWithLifecycle()
 
+    // Regresar después de crear o editar correctamente
     LaunchedEffect(formularioEstado.guardadoExitoso) {
         if (formularioEstado.guardadoExitoso) {
             navController.popBackStack()
@@ -73,9 +82,10 @@ fun NavegacionApp() {
         }
     }
 
-    // Aplicar preferencias al listado
+    // Aplicar las preferencias al listado
     val listaFiltrada = remember(listaEstado, preferencias) {
         when (val estado = listaEstado) {
+
             is ListaUiState.ConDatos -> {
                 var datos = estado.recordatorios
 
@@ -86,7 +96,9 @@ fun NavegacionApp() {
                 }
 
                 datos = when (preferencias.ordenamiento) {
-                    "titulo" -> datos.sortedBy { it.titulo }
+                    "titulo" -> datos.sortedBy {
+                        it.titulo
+                    }
 
                     "prioridad" -> datos.sortedBy {
                         when (it.prioridad) {
@@ -96,7 +108,9 @@ fun NavegacionApp() {
                         }
                     }
 
-                    else -> datos.sortedBy { it.id }
+                    else -> datos.sortedBy {
+                        it.id
+                    }
                 }
 
                 ListaUiState.ConDatos(datos)
@@ -110,6 +124,8 @@ fun NavegacionApp() {
         navController = navController,
         startDestination = "listado"
     ) {
+
+        // PANTALLA PRINCIPAL
         composable("listado") {
             PantallaListado(
                 estado = listaFiltrada,
@@ -129,6 +145,7 @@ fun NavegacionApp() {
             )
         }
 
+        // CREAR RECORDATORIO
         composable("crear") {
             PantallaCreacion(
                 estado = formularioEstado,
@@ -144,6 +161,7 @@ fun NavegacionApp() {
             )
         }
 
+        // DETALLE DEL RECORDATORIO
         composable(
             route = "detalle/{id}",
             arguments = listOf(
@@ -152,15 +170,32 @@ fun NavegacionApp() {
                 }
             )
         ) { entrada ->
+
             val id = entrada.arguments?.getInt("id") ?: -1
 
             var recordatorio by remember(id) {
                 mutableStateOf<Recordatorio?>(null)
             }
 
+            // Obtener el recordatorio al abrir esta pantalla.
             LaunchedEffect(id) {
                 modelo.obtenerRecordatorio(id) {
                     recordatorio = it
+                }
+            }
+
+            // Actualizar los detalles cuando Room emita cambios.
+            LaunchedEffect(id, listaEstado) {
+                val estado = listaEstado
+
+                if (estado is ListaUiState.ConDatos) {
+                    val actualizado = estado.recordatorios.find {
+                        it.id == id
+                    }
+
+                    if (actualizado != null) {
+                        recordatorio = actualizado
+                    }
                 }
             }
 
@@ -168,11 +203,60 @@ fun NavegacionApp() {
                 recordatorio = recordatorio,
                 onVolver = {
                     navController.popBackStack()
+                },
+                onCambiarEstado = {
+                    modelo.cambiarEstadoRecordatorio(id) { actualizado ->
+                        if (actualizado != null) {
+                            recordatorio = actualizado
+                        }
+                    }
+                },
+                onEliminar = {
+                    modelo.eliminarRecordatorio(id) { eliminado ->
+                        if (eliminado) {
+                            navController.popBackStack()
+                        }
+                    }
+                },
+                onEditar = {
+                    navController.navigate("editar/$id")
                 }
             )
         }
 
-        // Nueva pantalla de preferencias
+        // EDITAR RECORDATORIO
+        composable(
+            route = "editar/{id}",
+            arguments = listOf(
+                navArgument("id") {
+                    type = NavType.IntType
+                }
+            )
+        ) { entrada ->
+
+            val id = entrada.arguments?.getInt("id") ?: -1
+
+            // Cargar los datos originales en el formulario.
+            LaunchedEffect(id) {
+                modelo.cargarRecordatorioParaEditar(id)
+            }
+
+            PantallaCreacion(
+                estado = formularioEstado,
+                onTituloChange = modelo::actualizarTitulo,
+                onDescripcionChange = modelo::actualizarDescripcion,
+                onCategoriaChange = modelo::actualizarCategoria,
+                onPrioridadChange = modelo::actualizarPrioridad,
+                onGuardar = modelo::guardarRecordatorio,
+                onCancelar = {
+                    modelo.reiniciarFormulario()
+                    navController.popBackStack()
+                },
+                modoEdicion = true
+            )
+        }
+
+        // PREFERENCIAS
         composable("preferencias") {
             PantallaPreferencias(
                 preferencias = preferencias,

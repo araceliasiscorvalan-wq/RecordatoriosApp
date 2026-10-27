@@ -1,3 +1,4 @@
+
 package com.example.recordatoriosapp
 
 // Prioridades de los recordatorios
@@ -21,7 +22,7 @@ data class Categoria(
 
 // Modelo principal del recordatorio
 data class Recordatorio(
-    val id: Int,
+    val id: Int = 0,
     val titulo: String,
     val descripcion: String? = null,
     val categoria: Categoria,
@@ -31,7 +32,12 @@ data class Recordatorio(
     val fechaAviso: String? = null
 ) {
     init {
-        require(id > 0) { "El ID debe ser positivo" }
+        // ID 0: recordatorio nuevo, todavía sin guardar.
+        // ID mayor que 0: recordatorio ya identificado.
+        require(id >= 0) {
+            "El ID no puede ser negativo"
+        }
+
         require(titulo.isNotBlank()) {
             "El título no puede estar vacío"
         }

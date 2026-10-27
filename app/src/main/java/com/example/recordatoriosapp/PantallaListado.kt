@@ -1,16 +1,33 @@
 
 package com.example.recordatoriosapp
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
-@OptIn(ExperimentalMaterial3Api::class)
+// Paleta de colores de nuestra aplicación
+private val FondoApp = Color(0xFFFAF8FF)
+private val Violeta = Color(0xFF7655C5)
+private val TextoOscuro = Color(0xFF29243D)
+private val TextoSuave = Color(0xFF706B80)
+private val Lavanda = Color(0xFFF1E7FF)
+private val Durazno = Color(0xFFFFE8DC)
+private val Menta = Color(0xFFDCF5E8)
+private val Amarillo = Color(0xFFFFF1C8)
+
 @Composable
 fun PantallaListado(
     estado: ListaUiState,
@@ -22,45 +39,102 @@ fun PantallaListado(
 ) {
     Scaffold(
         modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text("Mis recordatorios")
+        containerColor = FondoApp,
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = onCrearRecordatorio,
+                containerColor = Violeta,
+                contentColor = Color.White,
+                shape = RoundedCornerShape(20.dp),
+                text = {
+                    Text(
+                        "Nueva tarea",
+                        fontWeight = FontWeight.Bold
+                    )
                 },
-                actions = {
-                    TextButton(
-                        onClick = onPreferenciasClick
-                    ) {
-                        Text("⚙️ Ajustes")
-                    }
+                icon = {
+                    Text(
+                        "+",
+                        fontSize = 25.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onCrearRecordatorio
-            ) {
-                Text("+")
-            }
         }
     ) { innerPadding ->
 
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+
+            // Encabezado
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = 20.dp,
+                        end = 20.dp,
+                        top = 24.dp,
+                        bottom = 16.dp
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "¡Hola! 👋",
+                        color = TextoSuave,
+                        fontSize = 16.sp
+                    )
+
+                    Spacer(
+                        modifier = Modifier.height(4.dp)
+                    )
+
+                    Text(
+                        text = "Mis recordatorios",
+                        color = TextoOscuro,
+                        fontSize = 27.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+
+                    Text(
+                        text = "Organizá tu día a tu manera ✨",
+                        color = TextoSuave,
+                        fontSize = 13.sp
+                    )
+                }
+
+                FilledTonalIconButton(
+                    onClick = onPreferenciasClick,
+                    colors = IconButtonDefaults
+                        .filledTonalIconButtonColors(
+                            containerColor = Lavanda,
+                            contentColor = Violeta
+                        )
+                ) {
+                    Text(
+                        text = "⚙",
+                        fontSize = 22.sp
+                    )
+                }
+            }
+
             when (estado) {
                 ListaUiState.Cargando -> {
                     EstadoMensaje(
-                        mensaje = "Cargando recordatorios..."
+                        mensaje = "Cargando tus tareas... ✨"
                     )
                 }
 
                 ListaUiState.Vacio -> {
                     EstadoMensaje(
-                        mensaje = "Todavía no hay recordatorios",
-                        textoBoton = "Crear recordatorio",
+                        mensaje = "🌈\n\n¡Un día lleno de posibilidades!\nTodavía no tenés recordatorios.",
+                        textoBoton = "Crear mi primera tarea",
                         onAccion = onCrearRecordatorio
                     )
                 }
@@ -68,17 +142,108 @@ fun PantallaListado(
                 is ListaUiState.Error -> {
                     EstadoMensaje(
                         mensaje = estado.mensaje,
-                        textoBoton = "Reintentar",
+                        textoBoton = "Volver a intentar",
                         onAccion = onReintentar
                     )
                 }
 
                 is ListaUiState.ConDatos -> {
+                    val total = estado.recordatorios.size
+
+                    val pendientes = estado.recordatorios.count {
+                        it.estado == EstadoRecordatorio.Pendiente
+                    }
+
+                    val completadas = total - pendientes
+
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        contentPadding = PaddingValues(
+                            start = 20.dp,
+                            end = 20.dp,
+                            bottom = 100.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
+
+                        item {
+                            Card(
+                                shape = RoundedCornerShape(24.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = Lavanda
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(20.dp)
+                                ) {
+                                    Text(
+                                        text = "Tu progreso de hoy 🌟",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextoOscuro
+                                    )
+
+                                    Spacer(
+                                        modifier = Modifier.height(12.dp)
+                                    )
+
+                                    Row(
+                                        horizontalArrangement =
+                                            Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        IndicadorResumen(
+                                            numero = total,
+                                            etiqueta = "Total",
+                                            modifier = Modifier.weight(1f)
+                                        )
+
+                                        IndicadorResumen(
+                                            numero = pendientes,
+                                            etiqueta = "Pendientes",
+                                            modifier = Modifier.weight(1f)
+                                        )
+
+                                        IndicadorResumen(
+                                            numero = completadas,
+                                            etiqueta = "Hechas",
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+
+                                    Spacer(
+                                        modifier = Modifier.height(16.dp)
+                                    )
+
+                                    LinearProgressIndicator(
+                                        progress = {
+                                            if (total == 0) 0f
+                                            else completadas.toFloat() / total
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(8.dp),
+                                        color = Violeta,
+                                        trackColor = Color.White
+                                    )
+                                }
+                            }
+                        }
+
+                        item {
+                            Text(
+                                text = "Tus tareas 📝",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextoOscuro,
+                                modifier = Modifier.padding(
+                                    top = 10.dp,
+                                    bottom = 4.dp
+                                )
+                            )
+                        }
+
                         items(
                             items = estado.recordatorios,
                             key = { it.id }
@@ -100,36 +265,168 @@ fun PantallaListado(
 }
 
 @Composable
+private fun IndicadorResumen(
+    numero: Int,
+    etiqueta: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .background(
+                Color.White.copy(alpha = 0.8f),
+                RoundedCornerShape(16.dp)
+            )
+            .padding(vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = numero.toString(),
+            fontSize = 24.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = Violeta
+        )
+
+        Text(
+            text = etiqueta,
+            fontSize = 11.sp,
+            color = TextoSuave
+        )
+    }
+}
+
+@Composable
 fun TarjetaRecordatorioItem(
     recordatorio: Recordatorio,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colorTarjeta = when (
+        recordatorio.categoria.nombre
+    ) {
+        "Estudio" -> Lavanda
+        "Trabajo" -> Durazno
+        "Personal" -> Menta
+        else -> Amarillo
+    }
+
+    val colorPrioridad = when (recordatorio.prioridad) {
+        Prioridad.Alta -> Color(0xFFD74F65)
+        Prioridad.Media -> Color(0xFFB77818)
+        Prioridad.Baja -> Color(0xFF21845B)
+    }
+
+    val completado =
+        recordatorio.estado == EstadoRecordatorio.Completado
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = colorTarjeta
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 2.dp
+        )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = recordatorio.titulo,
-                style = MaterialTheme.typography.titleMedium
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = when (
+                        recordatorio.categoria.nombre
+                    ) {
+                        "Estudio" -> "📚"
+                        "Trabajo" -> "💼"
+                        "Personal" -> "🌷"
+                        else -> "📌"
+                    },
+                    fontSize = 27.sp
+                )
+
+                Spacer(
+                    modifier = Modifier.width(12.dp)
+                )
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = recordatorio.titulo,
+                        color = TextoOscuro,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Text(
+                        text = recordatorio.categoria.nombre,
+                        color = TextoSuave,
+                        fontSize = 12.sp
+                    )
+                }
+
+                Text(
+                    text = "›",
+                    color = TextoOscuro,
+                    fontSize = 30.sp
+                )
+            }
+
+            HorizontalDivider(
+                color = Color.White.copy(alpha = 0.8f)
             )
 
-            Text(
-                text = "Categoría: ${recordatorio.categoria.nombre}"
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = colorPrioridad.copy(alpha = 0.12f)
+                ) {
+                    Text(
+                        text = "● ${recordatorio.prioridad.nombre}",
+                        modifier = Modifier.padding(
+                            horizontal = 11.dp,
+                            vertical = 7.dp
+                        ),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colorPrioridad
+                    )
+                }
 
-            Text(
-                text = "Prioridad: ${recordatorio.prioridad.nombre}"
-            )
-
-            Text(
-                text = "Estado: ${recordatorio.estado.nombre}"
-            )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.White.copy(alpha = 0.8f)
+                ) {
+                    Text(
+                        text = if (completado) {
+                            "✓ Completado"
+                        } else {
+                            "◷ Pendiente"
+                        },
+                        modifier = Modifier.padding(
+                            horizontal = 11.dp,
+                            vertical = 7.dp
+                        ),
+                        fontSize = 12.sp,
+                        color = TextoOscuro
+                    )
+                }
+            }
         }
     }
 }
@@ -144,23 +441,38 @@ fun EstadoMensaje(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center
+            .padding(28.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = mensaje,
-            style = MaterialTheme.typography.bodyLarge
+            fontSize = 18.sp,
+            color = TextoOscuro,
+            fontWeight = FontWeight.Medium,
+            lineHeight = 28.sp,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
 
         if (textoBoton != null) {
             Spacer(
-                modifier = Modifier.height(16.dp)
+                modifier = Modifier.height(24.dp)
             )
 
             Button(
-                onClick = onAccion
+                onClick = onAccion,
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Violeta
+                )
             ) {
-                Text(textoBoton)
+                Text(
+                    text = textoBoton,
+                    modifier = Modifier.padding(
+                        horizontal = 10.dp,
+                        vertical = 5.dp
+                    )
+                )
             }
         }
     }

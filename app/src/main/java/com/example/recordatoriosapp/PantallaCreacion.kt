@@ -1,15 +1,24 @@
 
 package com.example.recordatoriosapp
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.error
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+private val FondoFormulario = Color(0xFFFAF8FF)
+private val VioletaFormulario = Color(0xFF7655C5)
+private val TextoFormulario = Color(0xFF29243D)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -21,7 +30,8 @@ fun PantallaCreacion(
     onPrioridadChange: (Prioridad) -> Unit,
     onGuardar: () -> Unit,
     onCancelar: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    modoEdicion: Boolean = false
 ) {
     val formularioValido =
         estado.titulo.trim().length >= 4 &&
@@ -32,8 +42,32 @@ fun PantallaCreacion(
 
     Scaffold(
         modifier = modifier,
+        containerColor = FondoFormulario,
         topBar = {
-            TopAppBar(title = { Text("Nuevo recordatorio") })
+            TopAppBar(
+                title = {
+                    Text(
+                        if (modoEdicion) {
+                            "Editar tarea ✏️"
+                        } else {
+                            "Nueva tarea 🌈"
+                        },
+                        fontWeight = FontWeight.Bold,
+                        color = TextoFormulario
+                    )
+                },
+                navigationIcon = {
+                    TextButton(onClick = onCancelar) {
+                        Text(
+                            "← Volver",
+                            color = VioletaFormulario
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = FondoFormulario
+                )
+            )
         }
     ) { innerPadding ->
 
@@ -42,9 +76,41 @@ fun PantallaCreacion(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
+
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFF1E7FF)
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp)
+                ) {
+                    Text(
+                        text = if (modoEdicion) {
+                            "Dale un nuevo toque a tu tarea ✨"
+                        } else {
+                            "¡Organizá tus ideas! ✨"
+                        },
+                        color = TextoFormulario,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(Modifier.height(6.dp))
+
+                    Text(
+                        text = "Completá los datos de tu recordatorio",
+                        color = Color(0xFF706B80),
+                        fontSize = 14.sp
+                    )
+                }
+            }
 
             OutlinedTextField(
                 value = estado.titulo,
@@ -58,11 +124,8 @@ fun PantallaCreacion(
                             ?: "Mínimo 4 caracteres"
                     )
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics {
-                        estado.errorTitulo?.let { error(it) }
-                    }
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
             )
 
             OutlinedTextField(
@@ -79,39 +142,83 @@ fun PantallaCreacion(
                             ?: "${estado.descripcion.length}/200 caracteres"
                     )
                 },
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
 
             Text(
-                text = "Categoría",
-                style = MaterialTheme.typography.titleMedium
+                text = "Elegí una categoría 🎨",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextoFormulario
             )
 
-            DatosSimulados.categorias.sorted().forEach { categoria ->
-                Row(
-                    modifier = Modifier.fillMaxWidth()
+            listOf(
+                Triple("Estudio", "📚", Color(0xFFF1E7FF)),
+                Triple("Trabajo", "💼", Color(0xFFFFE8DC)),
+                Triple("Personal", "🌷", Color(0xFFDCF5E8))
+            ).forEach { (categoria, emoji, color) ->
+
+                val seleccionada = estado.categoria == categoria
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onCategoriaChange(categoria)
+                        },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = color
+                    ),
+                    border = if (seleccionada) {
+                        BorderStroke(2.dp, VioletaFormulario)
+                    } else {
+                        null
+                    }
                 ) {
-                    RadioButton(
-                        selected = estado.categoria == categoria,
-                        onClick = { onCategoriaChange(categoria) }
-                    )
-                    Text(
-                        text = categoria,
-                        modifier = Modifier.padding(top = 12.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(emoji, fontSize = 24.sp)
+
+                        Spacer(Modifier.width(12.dp))
+
+                        Text(
+                            categoria,
+                            modifier = Modifier.weight(1f),
+                            color = TextoFormulario,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        RadioButton(
+                            selected = seleccionada,
+                            onClick = {
+                                onCategoriaChange(categoria)
+                            },
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = VioletaFormulario
+                            )
+                        )
+                    }
                 }
             }
 
             estado.errorCategoria?.let {
                 Text(
-                    text = it,
+                    it,
                     color = MaterialTheme.colorScheme.error
                 )
             }
 
             Text(
-                text = "Prioridad",
-                style = MaterialTheme.typography.titleMedium
+                text = "¿Qué prioridad tiene? ⭐",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextoFormulario
             )
 
             listOf(
@@ -119,36 +226,86 @@ fun PantallaCreacion(
                 Prioridad.Media,
                 Prioridad.Baja
             ).forEach { prioridad ->
-                Row(
-                    modifier = Modifier.fillMaxWidth()
+
+                val color = when (prioridad) {
+                    Prioridad.Alta -> Color(0xFFFFE2E7)
+                    Prioridad.Media -> Color(0xFFFFF1C8)
+                    Prioridad.Baja -> Color(0xFFDCF5E8)
+                }
+
+                val seleccionada = estado.prioridad == prioridad
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onPrioridadChange(prioridad)
+                        },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = color
+                    ),
+                    border = if (seleccionada) {
+                        BorderStroke(2.dp, VioletaFormulario)
+                    } else {
+                        null
+                    }
                 ) {
-                    RadioButton(
-                        selected = estado.prioridad == prioridad,
-                        onClick = { onPrioridadChange(prioridad) }
-                    )
-                    Text(
-                        text = prioridad.nombre,
-                        modifier = Modifier.padding(top = 12.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = when (prioridad) {
+                                Prioridad.Alta -> "🔴"
+                                Prioridad.Media -> "🟡"
+                                Prioridad.Baja -> "🟢"
+                            },
+                            fontSize = 20.sp
+                        )
+
+                        Spacer(Modifier.width(12.dp))
+
+                        Text(
+                            prioridad.nombre,
+                            modifier = Modifier.weight(1f),
+                            color = TextoFormulario,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        RadioButton(
+                            selected = seleccionada,
+                            onClick = {
+                                onPrioridadChange(prioridad)
+                            },
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = VioletaFormulario
+                            )
+                        )
+                    }
                 }
             }
 
             estado.errorPrioridad?.let {
                 Text(
-                    text = it,
+                    it,
                     color = MaterialTheme.colorScheme.error
                 )
             }
 
             estado.errorGuardado?.let {
                 Text(
-                    text = it,
+                    it,
                     color = MaterialTheme.colorScheme.error
                 )
             }
 
             if (estado.guardando) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(
+                    color = VioletaFormulario
+                )
                 Text("Guardando recordatorio...")
             }
 
@@ -159,7 +316,8 @@ fun PantallaCreacion(
                 OutlinedButton(
                     onClick = onCancelar,
                     enabled = !estado.guardando,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Text("Cancelar")
                 }
@@ -167,11 +325,23 @@ fun PantallaCreacion(
                 Button(
                     onClick = onGuardar,
                     enabled = formularioValido,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = VioletaFormulario
+                    )
                 ) {
-                    Text("Guardar")
+                    Text(
+                        if (modoEdicion) {
+                            "Guardar cambios"
+                        } else {
+                            "Crear tarea"
+                        }
+                    )
                 }
             }
+
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
