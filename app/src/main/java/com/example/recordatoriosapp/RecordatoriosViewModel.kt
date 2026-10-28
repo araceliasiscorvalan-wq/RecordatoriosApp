@@ -13,7 +13,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class RecordatoriosViewModel(
-    private val repositorio: RecordatoriosRepository
+    private val repositorio: RecordatoriosRepository,
+    private val sincronizador: SincronizadorRecordatorios? = null
 ) : ViewModel() {
 
     private val _listaUiState =
@@ -28,16 +29,29 @@ class RecordatoriosViewModel(
     val formularioUiState: StateFlow<FormularioUiState> =
         _formularioUiState.asStateFlow()
 
+    // Estado de la sincronización
+    private val _sincronizando = MutableStateFlow(false)
+
+    val sincronizando: StateFlow<Boolean> =
+        _sincronizando.asStateFlow()
+
+    private val _mensajeSincronizacion =
+        MutableStateFlow<String?>(null)
+
+    val mensajeSincronizacion: StateFlow<String?> =
+        _mensajeSincronizacion.asStateFlow()
+
     private var trabajoListado: Job? = null
 
-    // ID del recordatorio que estamos editando.
-    // null significa que estamos creando uno nuevo.
+    // null: crear una tarea nueva
+    // otro valor: editar una tarea existente
     private var idEnEdicion: Int? = null
 
     init {
         cargarRecordatorios()
     }
 
+    // Observar los recordatorios guardados en Room
     fun cargarRecordatorios() {
         trabajoListado?.cancel()
 
@@ -72,9 +86,13 @@ class RecordatoriosViewModel(
         }
     }
 
+    // Actualizar los campos del formulario
     fun actualizarTitulo(valor: String) {
         _formularioUiState.update {
-            it.copy(titulo = valor, errorTitulo = null)
+            it.copy(
+                titulo = valor,
+                errorTitulo = null
+            )
         }
     }
 
@@ -89,42 +107,59 @@ class RecordatoriosViewModel(
 
     fun actualizarCategoria(valor: String) {
         _formularioUiState.update {
-            it.copy(categoria = valor, errorCategoria = null)
+            it.copy(
+                categoria = valor,
+                errorCategoria = null
+            )
         }
     }
 
     fun actualizarPrioridad(valor: Prioridad) {
         _formularioUiState.update {
-            it.copy(prioridad = valor, errorPrioridad = null)
+            it.copy(
+                prioridad = valor,
+                errorPrioridad = null
+            )
         }
     }
 
+    // Validar el formulario
     private fun erroresFormulario(
         estado: FormularioUiState
     ): FormularioUiState {
         return estado.copy(
             errorTitulo = if (estado.titulo.trim().length < 4) {
                 "El título debe tener al menos 4 caracteres"
-            } else null,
+            } else {
+                null
+            },
 
             errorDescripcion = if (estado.descripcion.length > 200) {
                 "La descripción no puede superar 200 caracteres"
-            } else null,
+            } else {
+                null
+            },
 
             errorCategoria = if (
                 estado.categoria !in DatosSimulados.categorias
             ) {
                 "Seleccioná una categoría válida"
-            } else null,
+            } else {
+                null
+            },
 
             errorPrioridad = if (estado.prioridad == null) {
                 "Seleccioná una prioridad"
-            } else null
+            } else {
+                null
+            }
         )
     }
 
     fun formularioValido(): Boolean {
-        val estado = erroresFormulario(_formularioUiState.value)
+        val estado = erroresFormulario(
+            _formularioUiState.value
+        )
 
         return estado.errorTitulo == null &&
                 estado.errorDescripcion == null &&
@@ -133,9 +168,10 @@ class RecordatoriosViewModel(
                 !estado.guardando
     }
 
-    // Cargar los datos originales para editar
+    // Cargar una tarea existente para editar
     fun cargarRecordatorioParaEditar(id: Int) {
         idEnEdicion = id
+
         _formularioUiState.value = FormularioUiState(
             guardando = true
         )
@@ -171,7 +207,7 @@ class RecordatoriosViewModel(
         }
     }
 
-    // Sirve tanto para crear como para editar
+    // Crear o editar un recordatorio
     fun guardarRecordatorio() {
         if (_formularioUiState.value.guardando) return
 
@@ -207,9 +243,10 @@ class RecordatoriosViewModel(
                 val idOriginal = idEnEdicion
 
                 if (idOriginal != null) {
-                    // Editar sin modificar ID, estado o fecha original
-                    val original = repositorio.obtenerPorId(idOriginal)
-                        ?: error("El recordatorio ya no existe")
+                    // Editar sin perder el identificador original
+                    val original =
+                        repositorio.obtenerPorId(idOriginal)
+                            ?: error("El recordatorio ya no existe")
 
                     val actualizado = original.copy(
                         titulo = estado.titulo.trim(),
@@ -226,7 +263,7 @@ class RecordatoriosViewModel(
                     repoRoom.actualizarRecordatorio(actualizado)
 
                 } else {
-                    // Crear un registro nuevo
+                    // Crear una tarea nueva
                     val nuevoId =
                         if (repositorio is RecordatoriosRepositoryRoom) {
                             0
@@ -269,7 +306,7 @@ class RecordatoriosViewModel(
         }
     }
 
-    // Cambiar entre pendiente y completado
+    // Alternar entre pendiente y completado
     fun cambiarEstadoRecordatorio(
         id: Int,
         onResultado: (Recordatorio?) -> Unit
@@ -290,7 +327,7 @@ class RecordatoriosViewModel(
         }
     }
 
-    // Eliminar un recordatorio de Room
+    // Eliminar lógicamente una tarea
     fun eliminarRecordatorio(
         id: Int,
         onResultado: (Boolean) -> Unit
@@ -317,17 +354,81 @@ class RecordatoriosViewModel(
         }
     }
 
+    // Enviar cambios pendientes al servidor Node.js
+    fun sincronizarRecordatorios() {
+        if (_sincronizando.value) return
+
+        val sincronizadorDisponible = sincronizador
+
+        if (sincronizadorDisponible == null) {
+            _mensajeSincronizacion.value =
+                "La sincronización todavía no está conectada"
+            return
+        }
+
+        viewModelScope.launch {
+            _sincronizando.value = true
+            _mensajeSincronizacion.value = null
+
+            try {
+                val cantidad =
+                    sincronizadorDisponible.sincronizar()
+
+                val pendientes =
+                    (repositorio as? RecordatoriosRepositoryRoom)
+                        ?.obtenerPendientes()
+                        ?.size ?: 0
+
+                _mensajeSincronizacion.value =
+                    when {
+                        pendientes > 0 ->
+                            "Se sincronizaron $cantidad cambios. " +
+                                    "Quedan $pendientes pendientes."
+
+                        cantidad == 0 ->
+                            "No hay cambios pendientes de sincronización"
+
+                        else ->
+                            "¡Se sincronizaron $cantidad cambios correctamente!"
+                    }
+
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Mostrar el motivo del fallo para diagnosticarlo
+                _mensajeSincronizacion.value =
+                    "Error de sincronización: " +
+                            (e.message ?: "Error desconocido") +
+                            ". Tus recordatorios siguen guardados."
+            } finally {
+                _sincronizando.value = false
+            }
+        }
+    }
+
+    fun limpiarMensajeSincronizacion() {
+        _mensajeSincronizacion.value = null
+    }
+
+    // Limpiar el formulario después de crear o editar
     fun reiniciarFormulario() {
         idEnEdicion = null
         _formularioUiState.value = FormularioUiState()
     }
 
+    // Consultar un recordatorio por ID
     fun obtenerRecordatorio(
         id: Int,
         onResultado: (Recordatorio?) -> Unit
     ) {
         viewModelScope.launch {
-            onResultado(repositorio.obtenerPorId(id))
+            try {
+                onResultado(repositorio.obtenerPorId(id))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                onResultado(null)
+            }
         }
     }
 }

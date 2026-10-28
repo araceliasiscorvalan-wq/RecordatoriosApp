@@ -29,20 +29,34 @@ fun NavegacionApp() {
         RecordatoriosDatabase.obtenerInstancia(context)
     }
 
-    // Repositorio que utiliza Room
-    val repositorio = remember(baseDatos) {
-        RecordatoriosRepositoryRoom(
-            baseDatos.recordatorioDao()
+    val dao = remember(baseDatos) {
+        baseDatos.recordatorioDao()
+    }
+
+    // Repositorio local
+    val repositorio = remember(dao) {
+        RecordatoriosRepositoryRoom(dao)
+    }
+
+    // Sincronizador con nuestra API
+    val sincronizador = remember(dao) {
+        SincronizadorRecordatorios(
+            dao = dao,
+            api = RetrofitClient.apiService
         )
     }
 
+    // ViewModel principal
     val modelo: RecordatoriosViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(
                 modelClass: Class<T>
             ): T {
-                return RecordatoriosViewModel(repositorio) as T
+                return RecordatoriosViewModel(
+                    repositorio = repositorio,
+                    sincronizador = sincronizador
+                ) as T
             }
         }
     )
@@ -69,6 +83,12 @@ fun NavegacionApp() {
         .collectAsStateWithLifecycle()
 
     val formularioEstado by modelo.formularioUiState
+        .collectAsStateWithLifecycle()
+
+    val sincronizando by modelo.sincronizando
+        .collectAsStateWithLifecycle()
+
+    val mensajeSincronizacion by modelo.mensajeSincronizacion
         .collectAsStateWithLifecycle()
 
     val preferencias by preferenciasModelo.preferencias
@@ -141,6 +161,14 @@ fun NavegacionApp() {
                 },
                 onPreferenciasClick = {
                     navController.navigate("preferencias")
+                },
+                sincronizando = sincronizando,
+                mensajeSincronizacion = mensajeSincronizacion,
+                onSincronizar = {
+                    modelo.sincronizarRecordatorios()
+                },
+                onLimpiarMensajeSincronizacion = {
+                    modelo.limpiarMensajeSincronizacion()
                 }
             )
         }
@@ -177,14 +205,12 @@ fun NavegacionApp() {
                 mutableStateOf<Recordatorio?>(null)
             }
 
-            // Obtener el recordatorio al abrir esta pantalla.
             LaunchedEffect(id) {
                 modelo.obtenerRecordatorio(id) {
                     recordatorio = it
                 }
             }
 
-            // Actualizar los detalles cuando Room emita cambios.
             LaunchedEffect(id, listaEstado) {
                 val estado = listaEstado
 
@@ -236,7 +262,6 @@ fun NavegacionApp() {
 
             val id = entrada.arguments?.getInt("id") ?: -1
 
-            // Cargar los datos originales en el formulario.
             LaunchedEffect(id) {
                 modelo.cargarRecordatorioParaEditar(id)
             }

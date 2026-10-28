@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,7 +36,13 @@ fun PantallaListado(
     onRecordatorioClick: (Int) -> Unit,
     onReintentar: () -> Unit,
     onPreferenciasClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+
+    // Nuevos parámetros para sincronizar
+    sincronizando: Boolean = false,
+    mensajeSincronizacion: String? = null,
+    onSincronizar: () -> Unit = {},
+    onLimpiarMensajeSincronizacion: () -> Unit = {}
 ) {
     Scaffold(
         modifier = modifier,
@@ -124,7 +131,125 @@ fun PantallaListado(
                 }
             }
 
+            // Sección de sincronización
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = 20.dp,
+                        end = 20.dp,
+                        bottom = 16.dp
+                    ),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.White
+                ),
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = Lavanda
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "☁️",
+                            fontSize = 26.sp
+                        )
+
+                        Spacer(
+                            modifier = Modifier.width(10.dp)
+                        )
+
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = "Sincronización",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextoOscuro
+                            )
+
+                            Text(
+                                text = "Guardá tus cambios en el servidor",
+                                fontSize = 12.sp,
+                                color = TextoSuave
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = onSincronizar,
+                        enabled = !sincronizando,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Violeta,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        if (sincronizando) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+
+                            Spacer(
+                                modifier = Modifier.width(10.dp)
+                            )
+
+                            Text("Sincronizando...")
+                        } else {
+                            Text(
+                                text = "↻  Sincronizar ahora",
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    if (mensajeSincronizacion != null) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = Lavanda
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp)
+                            ) {
+                                Text(
+                                    text = mensajeSincronizacion,
+                                    color = TextoOscuro,
+                                    fontSize = 13.sp
+                                )
+
+                                TextButton(
+                                    onClick = onLimpiarMensajeSincronizacion,
+                                    modifier = Modifier.align(
+                                        Alignment.End
+                                    )
+                                ) {
+                                    Text(
+                                        text = "Cerrar",
+                                        color = Violeta
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Contenido de los recordatorios
             when (estado) {
+
                 ListaUiState.Cargando -> {
                     EstadoMensaje(
                         mensaje = "Cargando tus tareas... ✨"
@@ -163,7 +288,8 @@ fun PantallaListado(
                             end = 20.dp,
                             bottom = 100.dp
                         ),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                        verticalArrangement =
+                            Arrangement.spacedBy(14.dp)
                     ) {
 
                         item {
@@ -218,8 +344,11 @@ fun PantallaListado(
 
                                     LinearProgressIndicator(
                                         progress = {
-                                            if (total == 0) 0f
-                                            else completadas.toFloat() / total
+                                            if (total == 0) {
+                                                0f
+                                            } else {
+                                                completadas.toFloat() / total
+                                            }
                                         },
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -390,7 +519,8 @@ fun TarjetaRecordatorioItem(
             )
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement =
+                    Arrangement.spacedBy(8.dp)
             ) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
@@ -451,7 +581,7 @@ fun EstadoMensaje(
             color = TextoOscuro,
             fontWeight = FontWeight.Medium,
             lineHeight = 28.sp,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = TextAlign.Center
         )
 
         if (textoBoton != null) {
@@ -477,3 +607,4 @@ fun EstadoMensaje(
         }
     }
 }
+

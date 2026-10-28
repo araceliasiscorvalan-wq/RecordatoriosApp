@@ -9,13 +9,13 @@ class RecordatoriosRepositoryRoom(
     private val dao: RecordatorioDao
 ) : RecordatoriosRepository {
 
-    // Observar los recordatorios guardados en Room
+    // Observar solamente los recordatorios activos
     val recordatoriosFlow: Flow<List<Recordatorio>> =
         dao.obtenerTodos().map { entidades ->
             entidades.map { it.aRecordatorio() }
         }
 
-    // Consultar todos los recordatorios
+    // Consultar los recordatorios activos
     override suspend fun obtenerRecordatorios(): List<Recordatorio> {
         return recordatoriosFlow.first()
     }
@@ -27,19 +27,22 @@ class RecordatoriosRepositoryRoom(
             ?.aRecordatorio()
     }
 
-    // Guardar un nuevo recordatorio
+    // Crear un recordatorio nuevo
     override suspend fun guardarRecordatorio(
         recordatorio: Recordatorio
     ) {
         dao.insertar(recordatorio.aEntity())
     }
 
-    // Actualizar sin perder la fecha original
+    // Editar conservando los identificadores y la fecha
     suspend fun actualizarRecordatorio(
         recordatorio: Recordatorio
     ) {
-        val entidadActual = dao.obtenerPorId(recordatorio.id)
-            .first() ?: return
+        val entidadActual = dao.obtenerRegistroPorId(
+            recordatorio.id
+        ) ?: return
+
+        if (entidadActual.eliminado) return
 
         val entidadActualizada = entidadActual.copy(
             titulo = recordatorio.titulo,
@@ -57,8 +60,10 @@ class RecordatoriosRepositoryRoom(
 
     // Cambiar entre pendiente y completado
     suspend fun cambiarEstado(id: Int) {
-        val entidadActual = dao.obtenerPorId(id)
-            .first() ?: return
+        val entidadActual = dao.obtenerRegistroPorId(id)
+            ?: return
+
+        if (entidadActual.eliminado) return
 
         val nuevoEstado = if (
             entidadActual.estado == "Completado"
@@ -76,17 +81,16 @@ class RecordatoriosRepositoryRoom(
         )
     }
 
-    // Eliminar un recordatorio
+    // Eliminación lógica:
+    // ocultar la tarea sin perder los datos
+    // necesarios para sincronizar su eliminación.
     suspend fun eliminarRecordatorio(
         recordatorio: Recordatorio
     ) {
-        val entidadActual = dao.obtenerPorId(recordatorio.id)
-            .first() ?: return
-
-        dao.eliminar(entidadActual)
+        dao.marcarEliminado(recordatorio.id)
     }
 
-    // Obtener cambios pendientes de sincronización
+    // Recuperar los cambios pendientes
     suspend fun obtenerPendientes(): List<RecordatorioEntity> {
         return dao.obtenerPendientes()
     }

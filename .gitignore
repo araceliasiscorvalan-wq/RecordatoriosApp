@@ -13,3 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+/servidor/node_modules/
+/servidor/recordatorios.json
+/servidor/recordatorios.json.tmp

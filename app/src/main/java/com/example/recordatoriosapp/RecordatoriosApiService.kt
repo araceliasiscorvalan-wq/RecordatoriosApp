@@ -5,12 +5,10 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
-import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
 
-// Representa un recordatorio enviado o recibido
-// mediante JSON desde un servidor.
+// Datos intercambiados con el servidor mediante JSON
 data class RecordatorioDto(
     val id: String? = null,
     val clienteId: String,
@@ -18,39 +16,37 @@ data class RecordatorioDto(
     val descripcion: String? = null,
     val categoria: String,
     val prioridad: String,
-    val estado: String
+    val estado: String,
+    val fecha: Long? = null
 )
 
-// Define las operaciones HTTP de la API.
+// Contrato HTTP de la API de recordatorios
 interface RecordatoriosApiService {
 
-    // GET: consultar recordatorios
+    // Consultar todos los recordatorios del servidor
     @GET("recordatorios")
     suspend fun obtenerRecordatorios():
             Response<List<RecordatorioDto>>
 
-    // GET: consultar un recordatorio específico
-    @GET("recordatorios/{id}")
-    suspend fun obtenerPorId(
-        @Path("id") id: String
+    // Consultar un registro por su identificador estable
+    @GET("recordatorios/{clienteId}")
+    suspend fun obtenerPorClienteId(
+        @Path("clienteId") clienteId: String
     ): Response<RecordatorioDto>
 
-    // POST: crear un recordatorio
-    @POST("recordatorios")
-    suspend fun crearRecordatorio(
+    // Crear o actualizar usando siempre el mismo clienteId.
+    // El servidor deberá implementar esta operación
+    // como idempotente (upsert).
+    @PUT("recordatorios/{clienteId}")
+    suspend fun guardarRecordatorio(
+        @Path("clienteId") clienteId: String,
         @Body recordatorio: RecordatorioDto
     ): Response<RecordatorioDto>
 
-    // PUT: actualizar un recordatorio
-    @PUT("recordatorios/{id}")
-    suspend fun actualizarRecordatorio(
-        @Path("id") id: String,
-        @Body recordatorio: RecordatorioDto
-    ): Response<RecordatorioDto>
-
-    // DELETE: eliminar un recordatorio
-    @DELETE("recordatorios/{id}")
+    // El servidor deberá considerar exitosa una
+    // eliminación repetida del mismo identificador.
+    @DELETE("recordatorios/{clienteId}")
     suspend fun eliminarRecordatorio(
-        @Path("id") id: String
+        @Path("clienteId") clienteId: String
     ): Response<Unit>
 }

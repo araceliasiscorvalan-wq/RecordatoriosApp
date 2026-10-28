@@ -9,15 +9,14 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
 
-    // URL temporal: todavía no tenemos un servidor real
-    private const val BASE_URL = "https://example.com/api/"
+    // Conexión local mediante ADB reverse
+    private const val BASE_URL = "http://127.0.0.1:3000/api/"
 
-    // Registro HTTP desactivado
+    // Registro básico de peticiones durante las pruebas
     private val interceptor = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.NONE
+        level = HttpLoggingInterceptor.Level.BASIC
     }
 
-    // Cliente de conexiones HTTP
     private val clienteOkHttp = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
@@ -25,14 +24,12 @@ object RetrofitClient {
         .addInterceptor(interceptor)
         .build()
 
-    // Configuración de Retrofit
     private val retrofit = Retrofit.Builder()
         .baseUrl(BASE_URL)
         .client(clienteOkHttp)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
 
-    // Servicio de la API
     val apiService: RecordatoriosApiService =
         retrofit.create(RecordatoriosApiService::class.java)
 }
